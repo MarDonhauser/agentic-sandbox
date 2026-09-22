@@ -36,6 +36,20 @@ npm run verify       # lint, unit tests, build
 npm run e2e          # browser tests, server must be running
 ```
 
+## API
+
+| Method | Path | Returns |
+|---|---|---|
+| `GET` | `/health` | `{ status, version, region }` |
+| `GET` | `/api/runs` | all runs, `?vehicleId=` filters |
+| `GET` | `/api/runs/summary` | one row per vehicle: `{ vehicleId, runs, avgCo2GramsPerKm }`, sorted by `vehicleId`, average rounded to one decimal |
+| `GET` | `/api/runs/:id` | one run, `404` with `{ error, id }` if unknown |
+| `POST` | `/api/runs` | the created run (`201`), `400` with `details[]` on invalid input |
+
+`/api/runs/summary` is registered before `/api/runs/:id` in `src/app.ts`. Reverse
+the order and Express matches `summary` as an id, which answers
+`404 {"error":"run not found","id":"summary"}`.
+
 ## Environment contract
 
 Every variable the app reads is declared in `src/config.ts` and provided by `k8s/configmap.yaml`. Keep this table, the code, and the manifest in sync.
