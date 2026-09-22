@@ -16,6 +16,12 @@ export interface NewRun {
   co2GramsPerKm: number;
 }
 
+export interface VehicleSummary {
+  vehicleId: string;
+  runs: number;
+  avgCo2GramsPerKm: number;
+}
+
 export class ValidationError extends Error {
   constructor(public readonly details: string[]) {
     super("validation failed");
@@ -61,6 +67,23 @@ export class RunStore {
 
   get(id: string): MeasurementRun | undefined {
     return this.runs.get(id);
+  }
+
+  summary(): VehicleSummary[] {
+    const totals = new Map<string, { runs: number; total: number }>();
+    for (const run of this.runs.values()) {
+      const entry = totals.get(run.vehicleId) ?? { runs: 0, total: 0 };
+      entry.runs += 1;
+      entry.total += run.co2GramsPerKm;
+      totals.set(run.vehicleId, entry);
+    }
+    return [...totals.entries()]
+      .map(([vehicleId, { runs, total }]) => ({
+        vehicleId,
+        runs,
+        avgCo2GramsPerKm: Math.round((total / runs) * 10) / 10,
+      }))
+      .sort((a, b) => (a.vehicleId < b.vehicleId ? -1 : a.vehicleId > b.vehicleId ? 1 : 0));
   }
 
   create(input: NewRun): MeasurementRun {

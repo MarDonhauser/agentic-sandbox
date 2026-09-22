@@ -65,3 +65,34 @@ describe("runs api", () => {
     expect(res.body.details).toHaveLength(3);
   });
 });
+
+describe("runs summary", () => {
+  let app: ReturnType<typeof buildApp>;
+  beforeEach(() => {
+    app = buildApp();
+  });
+
+  it("aggregates the seeded runs per vehicle, sorted by vehicleId", async () => {
+    const res = await request(app).get("/api/runs/summary");
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual([
+      { vehicleId: "WVW-1001", runs: 2, avgCo2GramsPerKm: 125.2 },
+      { vehicleId: "WVW-2042", runs: 1, avgCo2GramsPerKm: 97.2 },
+      { vehicleId: "WVW-3310", runs: 1, avgCo2GramsPerKm: 104 },
+    ]);
+  });
+
+  it("does not read summary as a run id", async () => {
+    const res = await request(app).get("/api/runs/summary");
+    expect(res.status).toBe(200);
+    expect(res.body).not.toMatchObject({ error: "run not found", id: "summary" });
+  });
+
+  it("counts a newly created run", async () => {
+    await request(app)
+      .post("/api/runs")
+      .send({ vehicleId: "WVW-2042", cycle: "RDE", co2GramsPerKm: 101.8 });
+    const res = await request(app).get("/api/runs/summary");
+    expect(res.body).toContainEqual({ vehicleId: "WVW-2042", runs: 2, avgCo2GramsPerKm: 99.5 });
+  });
+});
