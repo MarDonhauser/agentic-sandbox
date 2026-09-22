@@ -6,3 +6,4 @@ data:
   APP_REGION: "eu"
   LOG_LEVEL: "info"
   METRICS_ENABLED: "true"
+  METRICS_PORT: "9090"

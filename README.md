@@ -46,9 +46,16 @@ Every variable the app reads is declared in `src/config.ts` and provided by `k8s
 | `APP_REGION` | `eu` | no | reported by `/health` |
 | `LOG_LEVEL` | `info` | no | `debug`, `info`, `warn`, `error` |
 | `METRICS_ENABLED` | `false` | no | `true` enables a plain-text metrics listener |
-| `METRICS_PORT` | none | when `METRICS_ENABLED=true` | must differ from `PORT`; the process exits at startup if missing |
+| `METRICS_PORT` | none | when `METRICS_ENABLED=true` | must differ from `PORT`; the process exits at startup if missing. `k8s/configmap.yaml` sets `9090` |
 
-Metrics are enabled in the deployment. The pod exposes them on the container port named `metrics` (9090) as plain text; reach them with `kubectl port-forward deployment/sandbox-app 9090:9090` and `curl http://localhost:9090`.
+Metrics are enabled in the deployment: `k8s/configmap.yaml` sets `METRICS_ENABLED: "true"` **and** `METRICS_PORT: "9090"` — enabling metrics without the port makes the process exit at startup. The pod exposes the listener on the container port named `metrics` (9090) and answers plain text on `/`:
+
+```
+kubectl port-forward deployment/sandbox-app 9090:9090
+curl http://localhost:9090
+sandbox_runs_total 4
+sandbox_uptime_seconds 42
+```
 
 ## How the pipeline works
 
