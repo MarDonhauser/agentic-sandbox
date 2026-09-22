@@ -36,6 +36,16 @@ npm run verify       # lint, unit tests, build
 npm run e2e          # browser tests, server must be running
 ```
 
+## API
+
+| Method | Path | Returns |
+|---|---|---|
+| `GET` | `/health` | `{ status, version, region }` |
+| `GET` | `/api/runs` | all runs, optionally filtered with `?vehicleId=` |
+| `GET` | `/api/runs/:id` | one run, 404 if unknown |
+| `POST` | `/api/runs` | creates a run, 201, 400 with `details` on invalid input |
+| `GET` | `/api/vehicles` | distinct vehicle IDs of all runs, sorted ascending, e.g. `["WVW-1001","WVW-2042","WVW-3310"]` |
+
 ## Environment contract
 
 Every variable the app reads is declared in `src/config.ts` and provided by `k8s/configmap.yaml`. Keep this table, the code, and the manifest in sync.
