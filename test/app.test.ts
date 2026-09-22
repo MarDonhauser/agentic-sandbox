@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeEach } from "vitest";
+import { afterEach, describe, expect, it, beforeEach, vi } from "vitest";
 import request from "supertest";
 import { createApp } from "../src/app.js";
 import { loadConfig, ConfigError } from "../src/config.js";
@@ -63,5 +63,60 @@ describe("runs api", () => {
     const res = await request(app).post("/api/runs").send({ vehicleId: "", cycle: "FOO", co2GramsPerKm: "x" });
     expect(res.status).toBe(400);
     expect(res.body.details).toHaveLength(3);
+  });
+});
+
+describe("request logging", () => {
+  let app: ReturnType<typeof buildApp>;
+  let lines: string[];
+
+  beforeEach(() => {
+    app = buildApp();
+    lines = [];
+    vi.spyOn(console, "log").mockImplementation((...args: unknown[]) => {
+      lines.push(args.map((arg) => String(arg)).join(" "));
+    });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("returns a generated request id when the client sends none", async () => {
+    const res = await request(app).get("/health");
+    expect(res.headers["x-request-id"]).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
+  });
+
+  it("echoes a request id sent by the client", async () => {
+    const res = await request(app).get("/health").set("x-request-id", "trace-from-client");
+    expect(res.headers["x-request-id"]).toBe("trace-from-client");
+  });
+
+  it("writes one json line per request and never the request body", async () => {
+    const res = await request(app)
+      .post("/api/runs")
+      .set("x-request-id", "trace-42")
+      .send({ vehicleId: "WVW-7777", cycle: "WLTC", co2GramsPerKm: 88.1 });
+
+    expect(res.status).toBe(201);
+    expect(lines).toHaveLength(1);
+    const entry = JSON.parse(lines[0]);
+    expect(entry).toMatchObject({
+      level: "info",
+      msg: "request",
+      id: "trace-42",
+      method: "POST",
+      path: "/api/runs",
+      status: 201,
+    });
+    expect(typeof entry.durationMs).toBe("number");
+    expect(Object.keys(entry).sort()).toEqual(["durationMs", "id", "level", "method", "msg", "path", "status", "ts"]);
+    expect(lines[0]).not.toContain("WVW-7777");
+  });
+
+  it("logs the status of a failed request", async () => {
+    await request(app).get("/api/runs/run-9999");
+    expect(lines).toHaveLength(1);
+    expect(JSON.parse(lines[0])).toMatchObject({ msg: "request", method: "GET", path: "/api/runs/run-9999", status: 404 });
   });
 });
