@@ -1,11 +1,8 @@
 import http from "node:http";
 import { createApp } from "./app.js";
 import { ConfigError, loadConfig } from "./config.js";
+import { log } from "./log.js";
 import { RunStore, SEED_RUNS } from "./runs.js";
-
-function log(level: string, msg: string, extra: Record<string, unknown> = {}) {
-  console.log(JSON.stringify({ level, msg, ts: new Date().toISOString(), ...extra }));
-}
 
 let config;
 try {

@@ -1,7 +1,9 @@
 import express, { type Express, type Request, type Response, type NextFunction } from "express";
+import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { AppConfig } from "./config.js";
+import { log } from "./log.js";
 import { RunStore, ValidationError, validateNewRun } from "./runs.js";
 
 export const APP_VERSION = "1.0.0";
@@ -15,6 +17,27 @@ const publicDir = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", 
 
 export function createApp({ config, store }: AppContext): Express {
   const app = express();
+
+  app.use((req, res, next) => {
+    const incoming = req.header("x-request-id")?.trim();
+    const id = incoming ? incoming : randomUUID();
+    res.setHeader("x-request-id", id);
+
+    const startedAt = process.hrtime.bigint();
+    res.on("finish", () => {
+      const durationMs = Number(process.hrtime.bigint() - startedAt) / 1e6;
+      log("info", "request", {
+        id,
+        method: req.method,
+        path: req.path,
+        status: res.statusCode,
+        durationMs: Math.round(durationMs * 10) / 10,
+      });
+    });
+
+    next();
+  });
+
   app.use(express.json());
   app.use(express.static(publicDir));
 
