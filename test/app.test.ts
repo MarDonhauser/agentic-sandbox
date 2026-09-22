@@ -65,3 +65,50 @@ describe("runs api", () => {
     expect(res.body.details).toHaveLength(3);
   });
 });
+
+describe("run status transitions", () => {
+  let app: ReturnType<typeof buildApp>;
+  beforeEach(() => {
+    app = buildApp();
+  });
+
+  it("moves a run from planned to running to done", async () => {
+    const running = await request(app).patch("/api/runs/run-0001/status").send({ status: "running" });
+    expect(running.status).toBe(200);
+    expect(running.body).toMatchObject({ id: "run-0001", status: "running" });
+
+    const done = await request(app).patch("/api/runs/run-0001/status").send({ status: "done" });
+    expect(done.status).toBe(200);
+    expect(done.body).toMatchObject({ id: "run-0001", status: "done" });
+
+    const stored = await request(app).get("/api/runs/run-0001");
+    expect(stored.body.status).toBe("done");
+  });
+
+  it("rejects a forbidden transition with 409 and both states", async () => {
+    const res = await request(app).patch("/api/runs/run-0002/status").send({ status: "done" });
+    expect(res.status).toBe(409);
+    expect(res.body).toMatchObject({ error: "invalid transition", from: "planned", to: "done" });
+
+    const unchanged = await request(app).get("/api/runs/run-0002");
+    expect(unchanged.body.status).toBe("planned");
+  });
+
+  it("rejects a transition to the same status", async () => {
+    const res = await request(app).patch("/api/runs/run-0003/status").send({ status: "planned" });
+    expect(res.status).toBe(409);
+    expect(res.body).toMatchObject({ error: "invalid transition", from: "planned", to: "planned" });
+  });
+
+  it("answers 404 for an unknown run", async () => {
+    const res = await request(app).patch("/api/runs/run-9999/status").send({ status: "running" });
+    expect(res.status).toBe(404);
+    expect(res.body).toMatchObject({ error: "run not found", id: "run-9999" });
+  });
+
+  it("rejects an unknown status value with 400 and details", async () => {
+    const res = await request(app).patch("/api/runs/run-0004/status").send({ status: "banana" });
+    expect(res.status).toBe(400);
+    expect(res.body.details).toEqual(["status must be one of planned|running|done"]);
+  });
+});

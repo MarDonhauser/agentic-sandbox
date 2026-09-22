@@ -2,7 +2,7 @@ import express, { type Express, type Request, type Response, type NextFunction }
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { AppConfig } from "./config.js";
-import { RunStore, ValidationError, validateNewRun } from "./runs.js";
+import { RunStore, TransitionError, ValidationError, validateNewRun, validateStatusUpdate } from "./runs.js";
 
 export const APP_VERSION = "1.0.0";
 
@@ -39,9 +39,19 @@ export function createApp({ config, store }: AppContext): Express {
     res.status(201).json(run);
   });
 
+  app.patch("/api/runs/:id/status", (req, res) => {
+    const run = store.get(req.params.id);
+    if (!run) return res.status(404).json({ error: "run not found", id: req.params.id });
+    const next = validateStatusUpdate(req.body);
+    return res.json(store.setStatus(run, next));
+  });
+
   app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
     if (err instanceof ValidationError) {
       return res.status(400).json({ error: err.message, details: err.details });
+    }
+    if (err instanceof TransitionError) {
+      return res.status(409).json({ error: err.message, from: err.from, to: err.to });
     }
     if (err instanceof SyntaxError) {
       return res.status(400).json({ error: "invalid JSON body" });
