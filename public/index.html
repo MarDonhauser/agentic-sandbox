@@ -14,6 +14,8 @@
   input,select,button{padding:8px 10px;font:inherit;border:1px solid #c9ced6;border-radius:4px}
   button{background:#1e4fa3;color:#fff;border-color:#1e4fa3;cursor:pointer}
   .status{font-size:.85rem;color:#5b6672;min-height:1.2em}
+  .filter{display:flex;align-items:center;gap:8px;margin:16px 0;max-width:760px}
+  .filter label{font-size:.75rem;letter-spacing:.06em;text-transform:uppercase;color:#5b6672}
 </style>
 </head>
 <body>
@@ -29,6 +31,10 @@
     <button type="submit">Add run</button>
   </form>
   <p id="status" class="status" role="status"></p>
+  <div class="filter">
+    <label for="vehicle-filter">Filter by vehicle</label>
+    <input id="vehicle-filter" type="search" autocomplete="off">
+  </div>
   <table aria-label="Runs">
     <thead><tr><th>ID</th><th>Vehicle</th><th>Cycle</th><th>CO2 g/km</th><th>Status</th></tr></thead>
     <tbody id="runs"></tbody>
@@ -36,11 +42,19 @@
 <script>
   const tbody = document.getElementById("runs");
   const status = document.getElementById("status");
+  const filter = document.getElementById("vehicle-filter");
+  let allRuns = [];
+  function render() {
+    const needle = filter.value.trim().toLowerCase();
+    const shown = needle ? allRuns.filter(r => r.vehicleId.toLowerCase().includes(needle)) : allRuns;
+    tbody.innerHTML = shown.map(r => `<tr data-run-id="${r.id}"><td>${r.id}</td><td>${r.vehicleId}</td><td>${r.cycle}</td><td>${r.co2GramsPerKm}</td><td>${r.status}</td></tr>`).join("");
+  }
   async function load() {
     const res = await fetch("/api/runs");
-    const runs = await res.json();
-    tbody.innerHTML = runs.map(r => `<tr data-run-id="${r.id}"><td>${r.id}</td><td>${r.vehicleId}</td><td>${r.cycle}</td><td>${r.co2GramsPerKm}</td><td>${r.status}</td></tr>`).join("");
+    allRuns = await res.json();
+    render();
   }
+  filter.addEventListener("input", render);
   document.getElementById("new-run").addEventListener("submit", async (e) => {
     e.preventDefault();
     const body = {
