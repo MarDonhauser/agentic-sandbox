@@ -4,10 +4,14 @@ import { createApp } from "../src/app.js";
 import { loadConfig, ConfigError } from "../src/config.js";
 import { RunStore, SEED_RUNS } from "../src/runs.js";
 
-function buildApp() {
+function buildAppWithStore() {
   const config = loadConfig({ PORT: "0" });
   const store = new RunStore(SEED_RUNS);
-  return createApp({ config, store });
+  return { app: createApp({ config, store }), store };
+}
+
+function buildApp() {
+  return buildAppWithStore().app;
 }
 
 describe("config", () => {
@@ -63,5 +67,39 @@ describe("runs api", () => {
     const res = await request(app).post("/api/runs").send({ vehicleId: "", cycle: "FOO", co2GramsPerKm: "x" });
     expect(res.status).toBe(400);
     expect(res.body.details).toHaveLength(3);
+  });
+});
+
+describe("delete run", () => {
+  it("deletes a run and drops it from the list", async () => {
+    const app = buildApp();
+    const res = await request(app).delete("/api/runs/run-0001");
+    expect(res.status).toBe(204);
+    expect(res.body).toEqual({});
+
+    const list = await request(app).get("/api/runs");
+    expect(list.body).toHaveLength(SEED_RUNS.length - 1);
+    expect(list.body.map((r: { id: string }) => r.id)).not.toContain("run-0001");
+    expect((await request(app).get("/api/runs/run-0001")).status).toBe(404);
+  });
+
+  it("returns 404 for an unknown run", async () => {
+    const res = await request(buildApp()).delete("/api/runs/run-9999");
+    expect(res.status).toBe(404);
+    expect(res.body).toEqual({ error: "run not found", id: "run-9999" });
+  });
+
+  it("refuses to delete a run that is in progress", async () => {
+    const { app, store } = buildAppWithStore();
+    // No route sets the status yet, so the store is the only way to reach "running".
+    const run = store.list()[0];
+    run.status = "running";
+
+    const res = await request(app).delete(`/api/runs/${run.id}`);
+    expect(res.status).toBe(409);
+    expect(res.body).toMatchObject({ error: "run is in progress" });
+
+    const list = await request(app).get("/api/runs");
+    expect(list.body).toHaveLength(SEED_RUNS.length);
   });
 });
