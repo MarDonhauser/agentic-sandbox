@@ -65,3 +65,25 @@ describe("runs api", () => {
     expect(res.body.details).toHaveLength(3);
   });
 });
+
+describe("vehicles api", () => {
+  it("lists distinct seeded vehicle ids sorted ascending", async () => {
+    const res = await request(buildApp()).get("/api/vehicles");
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual(["WVW-1001", "WVW-2042", "WVW-3310"]);
+  });
+
+  it("returns an empty list for an empty store", async () => {
+    const app = createApp({ config: loadConfig({ PORT: "0" }), store: new RunStore() });
+    const res = await request(app).get("/api/vehicles");
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual([]);
+  });
+
+  it("includes a vehicle added through a new run", async () => {
+    const app = buildApp();
+    await request(app).post("/api/runs").send({ vehicleId: "WVW-0007", cycle: "NEDC", co2GramsPerKm: 91.5 });
+    const res = await request(app).get("/api/vehicles");
+    expect(res.body).toEqual(["WVW-0007", "WVW-1001", "WVW-2042", "WVW-3310"]);
+  });
+});
