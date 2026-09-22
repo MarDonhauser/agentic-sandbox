@@ -5,4 +5,4 @@ metadata:
 data:
   APP_REGION: "eu"
   LOG_LEVEL: "info"
-  METRICS_ENABLED: "false"
+  METRICS_ENABLED: "true"
