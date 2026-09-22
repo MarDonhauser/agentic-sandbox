@@ -23,6 +23,8 @@ export class ValidationError extends Error {
 }
 
 const CYCLES: Cycle[] = ["WLTC", "NEDC", "RDE"];
+const CO2_MIN = 0;
+const CO2_MAX = 500;
 
 export function validateNewRun(input: unknown): NewRun {
   const details: string[] = [];
@@ -36,6 +38,8 @@ export function validateNewRun(input: unknown): NewRun {
   }
   if (typeof body.co2GramsPerKm !== "number" || Number.isNaN(body.co2GramsPerKm)) {
     details.push("co2GramsPerKm must be a number");
+  } else if (body.co2GramsPerKm < CO2_MIN || body.co2GramsPerKm > CO2_MAX) {
+    details.push(`co2GramsPerKm must be between ${CO2_MIN} and ${CO2_MAX}`);
   }
   if (details.length > 0) throw new ValidationError(details);
 
