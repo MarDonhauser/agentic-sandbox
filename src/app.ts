@@ -27,6 +27,10 @@ export function createApp({ config, store }: AppContext): Express {
     res.json(store.list(vehicleId));
   });
 
+  app.get("/api/vehicles", (_req, res) => {
+    res.json(store.vehicleIds());
+  });
+
   app.get("/api/runs/:id", (req, res) => {
     const run = store.get(req.params.id);
     if (!run) return res.status(404).json({ error: "run not found", id: req.params.id });

@@ -59,6 +59,10 @@ export class RunStore {
     return vehicleId ? all.filter((r) => r.vehicleId === vehicleId) : all;
   }
 
+  vehicleIds(): string[] {
+    return [...new Set([...this.runs.values()].map((r) => r.vehicleId))].sort();
+  }
+
   get(id: string): MeasurementRun | undefined {
     return this.runs.get(id);
   }
