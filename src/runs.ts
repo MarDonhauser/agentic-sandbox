@@ -46,6 +46,8 @@ export function validateNewRun(input: unknown): NewRun {
   };
 }
 
+export type RemovalOutcome = "deleted" | "not-found" | "in-progress";
+
 export class RunStore {
   private readonly runs = new Map<string, MeasurementRun>();
   private seq = 0;
@@ -61,6 +63,14 @@ export class RunStore {
 
   get(id: string): MeasurementRun | undefined {
     return this.runs.get(id);
+  }
+
+  remove(id: string): RemovalOutcome {
+    const run = this.runs.get(id);
+    if (!run) return "not-found";
+    if (run.status === "running") return "in-progress";
+    this.runs.delete(id);
+    return "deleted";
   }
 
   create(input: NewRun): MeasurementRun {
