@@ -62,6 +62,23 @@ Every variable the app reads is declared in `src/config.ts` and provided by `k8s
 | `METRICS_ENABLED` | `false` | no | `true` enables a plain-text metrics listener |
 | `METRICS_PORT` | none | when `METRICS_ENABLED=true` | must differ from `PORT`; the process exits at startup if missing |
 
+## Metrics
+
+The deployment (`k8s/configmap.yaml`) sets `METRICS_ENABLED=true` and `METRICS_PORT=9100`. The
+pod exposes this as a second container port named `metrics` (`k8s/deployment.yaml`), and the
+`Service` forwards it on port `9100` (`k8s/service.yaml`). The endpoint answers plain text, for
+example `sandbox_runs_total 4` and `sandbox_uptime_seconds 12`.
+
+To reach it from a deployed cluster:
+
+```
+kubectl port-forward service/sandbox-app 9100:9100
+curl localhost:9100
+```
+
+Locally (`npm run dev`), metrics are off by default; set `METRICS_ENABLED=true` and
+`METRICS_PORT` to a free port to enable the listener.
+
 ## How the pipeline works
 
 `.github/workflows/ci.yml` runs two jobs on every push and pull request:
