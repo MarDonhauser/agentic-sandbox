@@ -28,6 +28,8 @@
     <input id="co2" name="co2GramsPerKm" type="number" step="0.1" placeholder="CO2 g/km" required>
     <button type="submit">Add run</button>
   </form>
+  <label for="vehicle-filter">Filter by vehicle</label>
+  <input id="vehicle-filter" placeholder="Filter by vehicle">
   <p id="status" class="status" role="status"></p>
   <table aria-label="Runs">
     <thead><tr><th>ID</th><th>Vehicle</th><th>Cycle</th><th>CO2 g/km</th><th>Status</th></tr></thead>
@@ -36,11 +38,19 @@
 <script>
   const tbody = document.getElementById("runs");
   const status = document.getElementById("status");
-  async function load() {
-    const res = await fetch("/api/runs");
-    const runs = await res.json();
+  const vehicleFilter = document.getElementById("vehicle-filter");
+  let allRuns = [];
+  function renderRuns() {
+    const filter = vehicleFilter.value.trim().toLowerCase();
+    const runs = filter ? allRuns.filter(r => r.vehicleId.toLowerCase().includes(filter)) : allRuns;
     tbody.innerHTML = runs.map(r => `<tr data-run-id="${r.id}"><td>${r.id}</td><td>${r.vehicleId}</td><td>${r.cycle}</td><td>${r.co2GramsPerKm}</td><td>${r.status}</td></tr>`).join("");
   }
+  async function load() {
+    const res = await fetch("/api/runs");
+    allRuns = await res.json();
+    renderRuns();
+  }
+  vehicleFilter.addEventListener("input", renderRuns);
   document.getElementById("new-run").addEventListener("submit", async (e) => {
     e.preventDefault();
     const body = {
