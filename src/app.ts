@@ -39,6 +39,15 @@ export function createApp({ config, store }: AppContext): Express {
     res.status(201).json(run);
   });
 
+  app.delete("/api/runs/:id", (req, res) => {
+    const run = store.get(req.params.id);
+    if (!run) return res.status(404).json({ error: "run not found", id: req.params.id });
+    if (run.status === "running") return res.status(409).json({ error: "run is in progress" });
+    const deleted = store.delete(req.params.id);
+    if (!deleted) return res.status(404).json({ error: "run not found", id: req.params.id });
+    return res.status(204).send();
+  });
+
   app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
     if (err instanceof ValidationError) {
       return res.status(400).json({ error: err.message, details: err.details });

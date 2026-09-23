@@ -7,7 +7,7 @@ import { RunStore, SEED_RUNS } from "../src/runs.js";
 function buildApp() {
   const config = loadConfig({ PORT: "0" });
   const store = new RunStore(SEED_RUNS);
-  return createApp({ config, store });
+  return { app: createApp({ config, store }), store };
 }
 
 describe("config", () => {
@@ -27,9 +27,12 @@ describe("config", () => {
 });
 
 describe("runs api", () => {
-  let app: ReturnType<typeof buildApp>;
+  let app: ReturnType<typeof buildApp>["app"];
+  let store: ReturnType<typeof buildApp>["store"];
   beforeEach(() => {
-    app = buildApp();
+    const ctx = buildApp();
+    app = ctx.app;
+    store = ctx.store;
   });
 
   it("reports health", async () => {
@@ -50,6 +53,33 @@ describe("runs api", () => {
     expect(res.status).toBe(404);
   });
 
+  it("deletes an existing run", async () => {
+    const created = await request(app)
+      .post("/api/runs")
+      .send({ vehicleId: "WVW-7777", cycle: "WLTC", co2GramsPerKm: 88.1 });
+    const res = await request(app).delete(`/api/runs/${created.body.id}`);
+    expect(res.status).toBe(204);
+    const list = await request(app).get("/api/runs");
+    expect(list.body.some((run: { id: string }) => run.id === created.body.id)).toBe(false);
+  });
+
+  it("returns 404 deleting an unknown run", async () => {
+    const res = await request(app).delete("/api/runs/run-9999");
+    expect(res.status).toBe(404);
+    expect(res.body).toEqual({ error: "run not found", id: "run-9999" });
+  });
+
+  it("rejects deleting a running run", async () => {
+    const run = store.create({ vehicleId: "WVW-7777", cycle: "WLTC", co2GramsPerKm: 88.1 });
+    const current = store.get(run.id);
+    if (!current) throw new Error("expected run to exist");
+    current.status = "running";
+
+    const res = await request(app).delete(`/api/runs/${run.id}`);
+    expect(res.status).toBe(409);
+    expect(res.body).toEqual({ error: "run is in progress" });
+  });
+
   it("creates a run", async () => {
     const res = await request(app)
       .post("/api/runs")
@@ -63,5 +93,21 @@ describe("runs api", () => {
     const res = await request(app).post("/api/runs").send({ vehicleId: "", cycle: "FOO", co2GramsPerKm: "x" });
     expect(res.status).toBe(400);
     expect(res.body.details).toHaveLength(3);
+  });
+
+  it("rejects out-of-range co2 values", async () => {
+    for (const co2 of [-5, 9999]) {
+      const res = await request(app).post("/api/runs").send({ vehicleId: "WVW-7777", cycle: "WLTC", co2GramsPerKm: co2 });
+      expect(res.status).toBe(400);
+      expect(res.body.details).toContain("co2GramsPerKm must be between 0 and 500");
+    }
+  });
+
+  it("accepts co2 boundary values", async () => {
+    for (const co2 of [0, 500]) {
+      const res = await request(app).post("/api/runs").send({ vehicleId: "WVW-7777", cycle: "WLTC", co2GramsPerKm: co2 });
+      expect(res.status).toBe(201);
+      expect(res.body.co2GramsPerKm).toBe(co2);
+    }
   });
 });
